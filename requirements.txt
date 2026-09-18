@@ -1,0 +1,22 @@
+cryptography
+matplotlib
+numpy
+packaging
+pandas>=2.0.0
+PyJWT>=2.0.0
+python-daemon
+python-dateutil
+query-string
+requests>=2.24.0
+rsa
+sas-dlpy
+sas-esppy
+SAS-kernel
+saspy>=5.0.0
+schedule
+service>=0.6.0
+# servicemanager>=2.0.10  # Removed due to pytest version conflict
+# win32service
+# win32event
+urllib3>=2.0.0
+twine
