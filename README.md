@@ -541,9 +541,9 @@ We welcome code contributions! Please read [CONTRIBUTING](CONTRIBUTING.md) for d
 
 ## License
 
-### Business Source License 1.1
+### Nelson Grey LLC Community License 1.0
 
-This project is licensed under the [Business Source License 1.1 (BSL)](LICENSE).
+This project is licensed under the [Nelson Grey LLC Community License 1.0](LICENSE).
 
 #### What does this mean?
 
@@ -560,7 +560,7 @@ This license choice balances:
 - **Sustainable development** through commercial licensing for production use
 - **Future openness** with automatic conversion to permissive licensing
 
-For commercial licensing inquiries, please contact the maintainer.
+For commercial licensing inquiries, please contact support@nelsongrey.com.
 
 ### Additional Resources
 
