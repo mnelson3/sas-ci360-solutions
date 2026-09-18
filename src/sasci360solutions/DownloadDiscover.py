@@ -25,7 +25,7 @@ logger = _log_.logging()
 
 class DownloadDiscover:
     def __init__(self, **kwargs):
-        standard = Standard.Standard.get_instance()
+        standard = Standard.get_instance()
 
         self._flag_test_report = standard.flag_test_report()
 

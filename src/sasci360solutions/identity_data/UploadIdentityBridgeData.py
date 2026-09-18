@@ -13,7 +13,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from sasci360apicore import connection, reporter
+from sasci360apicore import connection, encryption, reporter
 
 from standard import Standard
 
@@ -29,6 +29,8 @@ sys.path.append(dir_path)
 class UploadIdentityBridgeData:
 
     def __init__(self, **kwargs):
+        self.mode = kwargs.get("mode")
+
         self._log_file = Path(
             "{0}{1}{2}".format(
                 pkg_path, "/logs/", "custom_upload_identity_bridge_data.log"
@@ -44,10 +46,13 @@ class UploadIdentityBridgeData:
         self.connection = connection.Connection()
         self.reporter = reporter.Reporter(root=root_path)
 
-        self.standard = Standard()
-        self.export_file = self.standard.export_file
+        self.standard = Standard(mode=self.mode)
+        self.security = encryption.Encryption(
+            algorithm=self.standard.algorithm, encoding=self.standard.encoding
+        )
+        self._export_file = self.standard.export_file
         self.export_path = self.standard.export_path
-        self.export_post_path = self.standard.export_post_path
+        self._export_post_path = self.standard.export_post_path
         self.external_gateway_path = self.standard.external_gateway_path
         self.secret_key = self.standard.secret_key
         self.tenant_id = self.standard.tenant_id
@@ -95,7 +100,7 @@ class UploadIdentityBridgeData:
             result = self.connection.connect(
                 action=action, data=data, headers=headers, params=params, url=url
             )
-            self.reporter.store_response(
+            self.reporter.save(
                 folder=folder,
                 name="file_transfer_location_post_{}".format(time_stamp_),
                 data=result,
@@ -111,7 +116,7 @@ class UploadIdentityBridgeData:
                 csv_file = Path("{0}".format(file_name))
             else:
                 file_post_path = self._export_post_path
-                file_export_path = Path("{0}{1}".format(root_path, self._export_path))
+                file_export_path = Path("{0}{1}".format(root_path, self.export_path))
                 file_export = self._export_file
                 file_export_timestamp = "{0}_{1}{2}".format(
                     file_export[:-4], time_stamp_, ".CSV"

@@ -50,7 +50,7 @@ class CreateData:
         else:
             CreateData.__instance = self
 
-        standard = Standard.Standard.get_instance()
+        standard = Standard.get_instance()
 
         self._flag_csv_header = standard.flag_csv_header()
         self._delimiter = standard.delimiter()

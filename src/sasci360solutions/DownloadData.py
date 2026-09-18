@@ -30,7 +30,7 @@ class DownloadData:
         logger.setLevel(logging.ERROR)
         logger.addHandler(handler)
 
-        standard = Standard.Standard()
+        standard = Standard()
 
         self._delimiter = standard.delimiter()
         self._flag_append = standard.flag_append()

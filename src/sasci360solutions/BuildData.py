@@ -31,7 +31,7 @@ class BuildData:
         logger.setLevel(logging.ERROR)
         logger.addHandler(handler)
 
-        standard = Standard.Standard()
+        standard = Standard()
 
         self._suppression_email_domain_list = standard.suppression_email_domain_list()
         self._suppression_form_name_list = standard.suppression_form_name_list()

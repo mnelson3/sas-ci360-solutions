@@ -27,7 +27,9 @@ sys.path.append(dir_path)
 
 class SendIdentityBridgeStatusMessage:
 
-    def __init__(self):
+    def __init__(self, **kwargs):
+        self.mode = kwargs.get("mode")
+
         self._log_file = Path(
             "{0}{1}{2}".format(
                 pkg_path, "/logs/", "custom_send_identity_bridge_status_message.log"
@@ -40,9 +42,15 @@ class SendIdentityBridgeStatusMessage:
         handler.setLevel(logging.INFO)
         self.logger.addHandler(handler)
 
-        self.communication = communication.Communication()
+        self.standard = Standard(mode=self.mode)
 
-        self.standard = Standard.Standard()
+        self.communication = communication.Communication(
+            email_server=self.standard.email_server,
+            email_server_login=self.standard.email_server_login,
+            email_server_password=self.standard.email_server_password,
+            email_server_port=self.standard.email_server_port,
+        )
+
         self.email_msg_from = self.standard.email_msg_status_from
         self.email_msg_to = self.standard.email_msg_status_to
         self.report_path = self.standard.reports_path

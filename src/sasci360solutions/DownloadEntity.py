@@ -36,7 +36,7 @@ class DownloadEntity:
         else:
             DownloadEntity.__instance = self
 
-        standard = Standard.Standard.get_instance()
+        standard = Standard.get_instance()
 
         self._delimiter = standard.delimiter()
         self._flag_append = standard.flag_append()

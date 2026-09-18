@@ -47,7 +47,7 @@ class TableActions:
         self.__mode = TableActions.__mode
 
         self._reporter = reporter.Reporter()
-        self._standard = Standard.Standard()
+        self._standard = Standard()
         self._export_file = self._standard.export_file
         self._export_path = self._standard.export_path
         self._export_post_path = self._standard.export_post_path

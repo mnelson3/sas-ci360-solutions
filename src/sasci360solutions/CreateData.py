@@ -30,7 +30,7 @@ class CreateData:
         logger.setLevel(logging.ERROR)
         logger.addHandler(handler)
 
-        standard = Standard.Standard()
+        standard = Standard()
 
         self._flag_csv_header = standard.flag_csv_header()
         self._delimiter = standard.delimiter()

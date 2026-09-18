@@ -51,7 +51,7 @@ class BuildEmailData:
         else:
             BuildEmailData.__instance = self
 
-        self.standard = Standard.Standard()
+        self.standard = Standard()
         self.export_path = self._standard.export_path
         self.export_file = self._standard.export_file
         self.flag_test_export = self._standard.flag_test_export

@@ -49,8 +49,13 @@ class SendIdentityBridgeSupportMessage:
         self.__mode = SendIdentityBridgeSupportMessage.__mode
 
         if self.__mode is not None:
-            self._communication = communication.Communication(mode=self.__mode)
-            self._standard = Standard.Standard(mode=self.__mode)
+            self._standard = Standard(mode=self.__mode)
+            self._communication = communication.Communication(
+                email_server=self._standard.email_server,
+                email_server_login=self._standard.email_server_login,
+                email_server_password=self._standard.email_server_password,
+                email_server_port=self._standard.email_server_port,
+            )
             self._secret_key = self._standard.secret_key_arr
             self._tenant_id = self._standard.tenant_id_arr
             self._export_path = self._standard.export_path_arr
@@ -65,8 +70,13 @@ class SendIdentityBridgeSupportMessage:
             self._export_change_file = self._standard.export_change_file_arr
             self._export_post_path = self._standard.export_post_path_arr
         else:
-            self._communication = communication.Communication()
-            self._standard = Standard.Standard()
+            self._standard = Standard()
+            self._communication = communication.Communication(
+                email_server=self._standard.email_server,
+                email_server_login=self._standard.email_server_login,
+                email_server_password=self._standard.email_server_password,
+                email_server_port=self._standard.email_server_port,
+            )
             self._secret_key = self._standard.secret_key
             self._tenant_id = self._standard.tenant_id
             self._export_path = self._standard.export_path
