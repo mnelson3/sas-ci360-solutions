@@ -2,6 +2,8 @@
 
 ## SAS 360 SOLUTIONS - Automation Engine
 
+> **Status: canonical.** This is the actively maintained identity-bridge and reporting orchestration layer, built on the `sol-*` client libraries.
+
 This repository contains the core automation engine for SAS Customer Intelligence 360, providing a service-based framework for running CI360 operations programmatically.
 
 ### Overview
