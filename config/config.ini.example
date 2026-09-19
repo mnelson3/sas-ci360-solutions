@@ -1,0 +1,104 @@
+# SAS CI360 Solutions Configuration
+# Copy this file to config/config.ini and fill in your own values.
+#
+# Keys suffixed _dev/_test/_prod hold the value for that environment; the
+# bare key (e.g. secret_key) is the default returned when no mode is
+# specified, and the _arr key returns all three as [dev, test, prod] or,
+# when Standard(mode=...) is used, just that environment's value.
+
+[EMAIL]
+email_msg_status_from=noreply@example.com
+email_msg_status_to=admin@example.com
+email_msg_support_from=support@nelsongrey.com
+email_msg_support_to=support@nelsongrey.com
+email_msg_support_from_arr=${EMAIL:email_msg_support_from_dev},${EMAIL:email_msg_support_from_test},${EMAIL:email_msg_support_from_prod}
+email_msg_support_from_dev=support@nelsongrey.com
+email_msg_support_from_test=support@nelsongrey.com
+email_msg_support_from_prod=support@nelsongrey.com
+email_msg_support_to_arr=${EMAIL:email_msg_support_to_dev},${EMAIL:email_msg_support_to_test},${EMAIL:email_msg_support_to_prod}
+email_msg_support_to_dev=support@nelsongrey.com
+email_msg_support_to_test=support@nelsongrey.com
+email_msg_support_to_prod=support@nelsongrey.com
+email_msg_support_cc=support@nelsongrey.com
+email_msg_support_cc_arr=${EMAIL:email_msg_support_cc_dev},${EMAIL:email_msg_support_cc_test},${EMAIL:email_msg_support_cc_prod}
+email_msg_support_cc_dev=support@nelsongrey.com
+email_msg_support_cc_test=support@nelsongrey.com
+email_msg_support_cc_prod=support@nelsongrey.com
+email_server=smtp.example.com
+email_server_login=automation@example.com
+email_server_password=changeme
+email_server_port=587
+
+[FILES]
+export_file=export.csv
+export_file_arr=${FILES:export_file_dev},${FILES:export_file_test},${FILES:export_file_prod}
+export_file_dev=export.csv
+export_file_test=export.csv
+export_file_prod=export.csv
+export_change_file=export_change.csv
+export_change_file_arr=${FILES:export_change_file_dev},${FILES:export_change_file_test},${FILES:export_change_file_prod}
+export_change_file_dev=export_change.csv
+export_change_file_test=export_change.csv
+export_change_file_prod=export_change.csv
+
+[IDENTITIES]
+identity_bridge_table_id=changeme
+secret_key=changeme
+secret_key_arr=${IDENTITIES:secret_key_dev},${IDENTITIES:secret_key_test},${IDENTITIES:secret_key_prod}
+secret_key_dev=changeme
+secret_key_test=changeme
+secret_key_prod=changeme
+tenant_id=changeme
+tenant_id_arr=${IDENTITIES:tenant_id_dev},${IDENTITIES:tenant_id_test},${IDENTITIES:tenant_id_prod}
+tenant_id_dev=changeme
+tenant_id_test=changeme
+tenant_id_prod=changeme
+
+[PATHS]
+export_path=/data/export/
+export_path_arr=${PATHS:export_path_dev},${PATHS:export_path_test},${PATHS:export_path_prod}
+export_path_dev=/data/export/development/
+export_path_test=/data/export/test/
+export_path_prod=/data/export/production/
+export_post_path=changeme
+export_post_path_arr=${PATHS:export_post_path_dev},${PATHS:export_post_path_test},${PATHS:export_post_path_prod}
+export_post_path_dev=changeme
+export_post_path_test=changeme
+export_post_path_prod=changeme
+external_gateway_path=extapigwservice-training.ci360.sas.com
+external_gateway_path_arr=${PATHS:external_gateway_path_dev},${PATHS:external_gateway_path_test},${PATHS:external_gateway_path_prod}
+external_gateway_path_dev=extapigwservice-training.ci360.sas.com
+external_gateway_path_test=extapigwservice-training.ci360.sas.com
+external_gateway_path_prod=extapigwservice-prod.ci360.sas.com
+file_transfer_location_path=/marketingData/fileTransferLocation
+import_request_jobs_path=/marketingData/importRequestJobs
+reports_path=/reports/
+
+[SETTINGS]
+algorithm=HS256
+encoding=UTF-8
+tenant_environment=test
+tenant_environment_arr=${SETTINGS:tenant_environment_dev},${SETTINGS:tenant_environment_test},${SETTINGS:tenant_environment_prod}
+tenant_environment_dev=dev
+tenant_environment_test=test
+tenant_environment_prod=prod
+tenant_name=Example Tenant
+tenant_name_arr=${SETTINGS:tenant_name_dev},${SETTINGS:tenant_name_test},${SETTINGS:tenant_name_prod}
+tenant_name_dev=Example Tenant (Dev)
+tenant_name_test=Example Tenant (Test)
+tenant_name_prod=Example Tenant (Production)
+tenant_number=000000
+tenant_number_arr=${SETTINGS:tenant_number_dev},${SETTINGS:tenant_number_test},${SETTINGS:tenant_number_prod}
+tenant_number_dev=000000
+tenant_number_test=000000
+tenant_number_prod=000000
+tenant_product=SAS Customer Intelligence 360
+tenant_product_arr=${SETTINGS:tenant_product_dev},${SETTINGS:tenant_product_test},${SETTINGS:tenant_product_prod}
+tenant_product_dev=SAS Customer Intelligence 360
+tenant_product_test=SAS Customer Intelligence 360
+tenant_product_prod=SAS Customer Intelligence 360
+tenant_url=https://platform-training.ci360.sas.com/SASCustomerIntelligenceHome/
+tenant_url_arr=${SETTINGS:tenant_url_dev},${SETTINGS:tenant_url_test},${SETTINGS:tenant_url_prod}
+tenant_url_dev=https://platform-training.ci360.sas.com/SASCustomerIntelligenceHome/
+tenant_url_test=https://platform-training.ci360.sas.com/SASCustomerIntelligenceHome/
+tenant_url_prod=https://platform-use.ci360.sas.com/SASCustomerIntelligenceHome/
