@@ -1,23 +1,12 @@
-cryptography
-matplotlib
-numpy
-packaging
+ftfy
 pandas>=2.0.0
 PyJWT>=2.0.0
 python-daemon
 python-dateutil
-query-string
 requests>=2.24.0
-rsa
-sas-dlpy
-sas-esppy
-SAS-kernel
 saspy>=5.0.0
 schedule
 sasci360apicore @ git+https://github.com/mnelson3/sas_ci360_api_core.git@main
 service>=0.6.0
-# servicemanager>=2.0.10  # Removed due to pytest version conflict
-# win32service
-# win32event
+pywin32; sys_platform == "win32"
 urllib3>=2.0.0
-twine
