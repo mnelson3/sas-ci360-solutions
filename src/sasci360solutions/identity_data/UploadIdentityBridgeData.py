@@ -139,7 +139,7 @@ class UploadIdentityBridgeData:
             result = self.connection.connect(
                 action=action, data=data, headers=headers, params=params, url=url
             )
-        except (TypeError, OSError) as e:
+        except (TypeError, KeyError, OSError) as e:
             self.logger.exception("Exception occurred: {}".format(str(e)))
         return result
 
