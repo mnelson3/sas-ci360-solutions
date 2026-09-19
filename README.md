@@ -117,8 +117,6 @@ sas-ci360-solutions/
 │   └── sasci360solutions/          # Main package
 │       ├── __init__.py
 │       ├── main.py                 # Application entry point
-│       ├── cloud/                  # Cloud integrations
-│       │   └── GoogleBigQuery.py
 │       ├── content/                # Content management
 │       ├── content_delivery/       # Email/content delivery
 │       │   └── BuildEmailData.py
