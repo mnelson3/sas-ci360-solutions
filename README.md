@@ -352,7 +352,12 @@ python -m pytest --cov=src --cov-report=html
 
 # Run with verbose output
 python -m pytest -v
+
+# Include tests that call a live CI360 tenant (needs a populated config.ini)
+CI360_RUN_LIVE_TESTS=1 python -m pytest
 ```
+
+`TestUploadIdentityBridgeData.py`'s four tests call `UploadIdentityBridgeData.run()`, which makes a real HTTPS call to CI360's gateway and reads a real identity-bridge export file from disk. They're skipped unless `CI360_RUN_LIVE_TESTS` is set, so CI stays green without a live tenant; run them locally against your own tenant when changing that module.
 
 #### Writing Tests
 
