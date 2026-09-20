@@ -116,7 +116,6 @@ sas-ci360-solutions/
 │   └── sasci360solutions/          # Main package
 │       ├── __init__.py
 │       ├── main.py                 # CI360Main orchestrator (identity-bridge cycle)
-│       ├── content/                # Reserved for future content-delivery integration
 │       ├── identity_data/          # Identity-bridge cycle
 │       │   ├── CreateIdentityBridgeReports.py
 │       │   ├── SendIdentityBridgeStatusMessage.py
@@ -124,10 +123,11 @@ sas-ci360-solutions/
 │       │   └── UploadIdentityBridgeData.py
 │       ├── marketing_data/         # Marketing data / table metadata
 │       │   └── TablesAction.py
-│       ├── planning/                # Reserved for future Plan API integration
 │       └── setup/                   # Reserved for future setup utilities
 └── tests/                           # Test suite (mocked, no live tenant required)
 ```
+
+> `content/` and `planning/` modules existed here previously as unfinished stubs for future content-delivery and Plan API integration, but both imported a `Main` class that no longer exists after `main.py` was rewritten to `CI360Main` during the identity-bridge rebuild — neither could even be imported. Removed 2026-09-20 rather than left broken; see `docs/DDD.md` for the full history if either integration is picked back up.
 
 `config/`, `data/`, and `logs/` are created locally at runtime and are not tracked in the repo (see `.gitignore`).
 
@@ -308,12 +308,7 @@ class ExampleModule:
 
 #### CI360 API Client
 
-The project integrates with multiple SAS CI360 APIs:
-
-- **Marketing Data API**: Table operations, data imports
-- **Identity API**: Identity bridge management
-- **Content API**: Email and content delivery
-- **Planning API**: Budget and planning data
+The project integrates with the CI360 Marketing Data API (`sasci360soldata`) for the identity-bridge cycle: table operations, import request jobs, and file transfer location. It does not currently integrate with the Digital Assets or Plan APIs — earlier stub modules for both were unfinished and broken (see the note under Project Structure above) and were removed rather than kept as dead code.
 
 #### Authentication
 
@@ -349,11 +344,16 @@ Tests are organized to mirror source structure:
 tests/
 ├── TestCreateIdentityBridgeReports.py
 ├── TestMain.py
+├── TestSASCI360Service.py          # Windows service - pywin32 stubbed via sys.modules
 ├── TestSendIdentityBridgeStatusMessage.py
 ├── TestSendIdentityBridgeSupportMessage.py
+├── TestStandard.py                 # config.ini fallback/by-mode logic
 ├── TestTablesAction.py
+├── TestUnixService.py              # Linux systemd service
 └── TestUploadIdentityBridgeData.py
 ```
+
+`src/` is at 95% line coverage as of 2026-09-20 (82 tests). See `docs/TRD.md` for the per-module breakdown and what's still open.
 
 #### Running Tests
 
