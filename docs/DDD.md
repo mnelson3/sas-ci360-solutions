@@ -64,7 +64,7 @@ This is the same technique `sol-identity` (in `sas-ci360-sdk`) established for i
 
 ## `Standard` — testing config fallback deterministically
 
-`Standard` computes its config-file path from a module-level `root_path` set at import time. Tests monkeypatch that variable to point at an empty `tmp_path` per test, so the fallback-default behavior (`CI360SOLUTIONS-NFR-6`-equivalent, see TRD.md) is exercised deterministically regardless of whether the machine running the tests happens to have a real `config/config.ini` checked out locally — the only way to test "no config file present" reliably without that risk.
+`Standard` computes its config-file path from a module-level `root_path` set at import time. Tests monkeypatch that variable to point at an empty `tmp_path` per test, so the fallback-default behavior (CI360SOLUTIONS-NFR-6-equivalent, see TRD.md) is exercised deterministically regardless of whether the machine running the tests happens to have a real `config/config.ini` checked out locally — the only way to test "no config file present" reliably without that risk.
 
 ## CI/CD pipeline
 
