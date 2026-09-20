@@ -7,3 +7,7 @@
 # https://github.com/mnelson3/sas-ci360-solutions/blob/main/LICENSE
 #
 # -*- mode: python ; coding: utf-8 -*-
+
+from sasci360solutions.marketing_data.TablesAction import TableActions
+
+__all__ = ["TableActions"]

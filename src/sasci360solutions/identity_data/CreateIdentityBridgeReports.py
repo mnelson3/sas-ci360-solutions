@@ -7,14 +7,15 @@
 # https://github.com/mnelson3/sas-ci360-solutions/blob/main/LICENSE
 #
 import csv
-import json
 import logging
 import os
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
-from sasci360apicore import connection, encryption, reporter
+from sasci360apicore import reporter
+from sasci360soldata.base import CI360DataBase, CI360DataConfig, CI360DataError
 
 from standard import Standard
 
@@ -26,8 +27,18 @@ root_path = os.path.abspath(os.path.join(src_path, os.pardir))
 pkg_path = os.path.abspath(os.path.join(root_path, os.pardir))
 sys.path.append(dir_path)
 
+# Job status values CI360 is known to use for a completed, error-free stage.
+# NOTE: this list reflects the values seen in this project's own reference
+# fixtures/history, not SAS's own published enum of every possible status
+# string; treat anything not in this set as "not a confirmed success" and
+# adjust as real tenant responses are observed.
+_SUCCESS_STATUSES = {"imported", "completed", "success", "processed"}
+
 
 class CreateIdentityBridgeReports:
+    """Pulls import-request-job status for the identity-bridge table from CI360
+    (via the sol-data client) and writes it out as a CSV report, one row per
+    job, flagging whether each job succeeded or failed."""
 
     def __init__(self, **kwargs):
         self.mode = kwargs.get("mode")
@@ -44,219 +55,193 @@ class CreateIdentityBridgeReports:
         handler.setLevel(logging.INFO)
         self.logger.addHandler(handler)
 
-        self.connection = connection.Connection()
-        self.reporter = reporter.Reporter(root=root_path)
+        self.root_path = kwargs.get("root_path", root_path)
+        self.standard = kwargs.get("standard") or Standard(mode=self.mode)
+        self.reporter = kwargs.get("reporter") or reporter.Reporter(root=self.root_path)
 
-        self.standard = Standard(mode=self.mode)
-        self.security = encryption.Encryption(
-            algorithm=self.standard.algorithm, encoding=self.standard.encoding
+        self.client = kwargs.get("client") or CI360DataBase(
+            CI360DataConfig(
+                algorithm=self.standard.algorithm,
+                encoding=self.standard.encoding,
+                host="https://{0}".format(self.standard.external_gateway_path),
+                secret_key=self.standard.secret_key,
+                tenant_id=self.standard.tenant_id,
+            )
         )
-        self.reports_path = self.standard.reports_path
-        self.external_gateway_path = self.standard.external_gateway_path
-        self.identity_bridge_table_id = self.standard.identity_bridge_table_id
-        self.import_request_jobs_path = self.standard.import_request_jobs_path
-        self.secret_key = self.standard.secret_key
-        self.tenant_id = self.standard.tenant_id
 
+        self.reports_path = self.standard.reports_path
+        self.identity_bridge_table_id = self.standard.identity_bridge_table_id
         self.gDirDataResponseImportRequestJobsGet = (
             self.standard.gDirDataResponseImportRequestJobsGet
         )
 
-    def run(self, **kwargs):
+    def _folder(self):
+        mode = self.mode if self.mode is not None else "development"
+        return "{0}{1}/".format(self.gDirDataResponseImportRequestJobsGet, mode)
+
+    @staticmethod
+    def job_succeeded(job_detail: dict) -> bool:
+        """
+        Determine whether a single import-request-job's fetched detail
+        represents a successful (error-free) run.
+
+        A job is treated as failed if CI360 attached failureOutputFiles, or
+        if any of its three status stages is present and isn't a known
+        success value. See the _SUCCESS_STATUSES caveat above.
+        """
+        if job_detail.get("failureOutputFiles"):
+            return False
+
+        status_info = job_detail.get("statusInfo") or {}
+        for stage in ("importValidation", "dataProcessing", "identityProcessing"):
+            status = (status_info.get(stage) or {}).get("status")
+            if status and str(status).strip().lower() not in _SUCCESS_STATUSES:
+                return False
+        return True
+
+    def run(self, **kwargs) -> bool:
+        """
+        Refresh import-request-job data for the identity-bridge table and
+        write a CSV report.
+
+        :keyword time_stamp: timestamp (YYYYMMDDHHMMSS) to namespace this
+            run's report/response files with; defaults to now.
+        :return: True if every matching job succeeded (or none matched),
+            False if any job failed or the refresh itself raised.
+        :rtype: bool
+        """
         try:
-            if "time_stamp" in kwargs:
-                time_stamp_ = kwargs["time_stamp"]
-            else:
-                time_stamp = datetime.now().strftime("%Y:%m:%d:%H:%M:%S")
-                time_stamp_ = time_stamp.replace(":", "")
+            time_stamp_ = kwargs.get("time_stamp") or datetime.now().strftime(
+                "%Y%m%d%H%M%S"
+            )
 
-            self.refresh_data(time_stamp=time_stamp_)
-
-            if self.mode is not None:
-                folder = "{0}{1}/".format(
-                    self.gDirDataResponseImportRequestJobsGet, self.mode
-                )
-            else:
-                folder = "{0}{1}/".format(
-                    self.gDirDataResponseImportRequestJobsGet, "development"
-                )
+            jobs = self.refresh_data(time_stamp=time_stamp_)
+            if jobs is None:
+                return False
 
             report_folder = self.reports_path
             table_id = self.identity_bridge_table_id
             file_name = "import_request_jobs_get_{}".format(time_stamp_)
-            json_file = Path(
-                "{0}{1}{2}{3}".format(root_path, folder, file_name, ".JSON")
-            )
             csv_file = Path(
-                "{0}{1}{2}{3}".format(root_path, report_folder, file_name, ".CSV")
+                "{0}{1}{2}{3}".format(self.root_path, report_folder, file_name, ".CSV")
             )
 
-            counter = 1
-            with open(json_file, "r", encoding="utf-8") as infile:
-                result = json.load(infile)
-                if result is not None:
-                    for item in result["items"]:
-                        if item["dataDescriptorId"] == table_id:
-                            self._write_item_record(item, folder, csv_file, counter)
-                            counter += 1
-        except (OSError, KeyError, json.JSONDecodeError) as e:
+            counter = 0
+            overall_success = True
+            for item in jobs.get("items", []):
+                if item.get("dataDescriptorId") != table_id:
+                    continue
+                job_detail = self.client.get_import_request_job(item["id"])
+                self.reporter.save(
+                    folder=self._folder(), name="{}".format(item["id"]), data=job_detail
+                )
+                counter += 1
+                succeeded = self.job_succeeded(job_detail)
+                overall_success = overall_success and succeeded
+                self._write_item_record(job_detail, csv_file, counter, succeeded)
+
+            return overall_success
+        except (KeyError, OSError, CI360DataError) as e:
             self.logger.exception("Exception occurred: {}".format(str(e)))
+            return False
 
-    def _write_item_record(self, item, folder, csv_file, counter):
-        file_name_ = "{}".format(item["id"])
-        json_file_ = Path("{0}{1}{2}{3}".format(root_path, folder, file_name_, ".JSON"))
-        record = [counter]
-        with open(json_file_, "r", encoding="utf-8") as infile_:
-            result_ = json.load(infile_)
-            import_validation = result_["statusInfo"]["importValidation"]
-            record.append(import_validation["status"])
-            record.append(import_validation["startTime"])
-            record.append(import_validation["endTime"])
-            record.append(import_validation["messages"])
+    def _write_item_record(self, job_detail, csv_file, counter, succeeded):
+        status_info = job_detail.get("statusInfo") or {}
+        import_validation = status_info.get("importValidation") or {}
+        data_processing = status_info.get("dataProcessing") or {}
+        identity_processing = status_info.get("identityProcessing") or {}
+        item_messages = identity_processing.get("messages") or {}
+        info = item_messages.get("info") or {}
+        failure_output_files = job_detail.get("failureOutputFiles") or {}
 
-            data_processing = result_["statusInfo"]["dataProcessing"]
-            record.append(data_processing["status"])
-            record.append(data_processing["startTime"])
-            record.append(data_processing["endTime"])
-            record.append(data_processing["messages"])
+        record = [
+            counter,
+            "SUCCESS" if succeeded else "FAILURE",
+            import_validation.get("status"),
+            import_validation.get("startTime"),
+            import_validation.get("endTime"),
+            import_validation.get("messages"),
+            data_processing.get("status"),
+            data_processing.get("startTime"),
+            data_processing.get("endTime"),
+            data_processing.get("messages"),
+            identity_processing.get("status"),
+            identity_processing.get("startTime"),
+            identity_processing.get("endTime"),
+            item_messages,
+            info.get("Total Number of Records Not Processed"),
+            info.get("Total Number of Identities Updated"),
+            info.get("Total Number of Identities Created"),
+            info.get("Total Number of Identities Rejected"),
+            info.get("Total Number of Records Processed"),
+            failure_output_files.get("createdTimeStamp"),
+            failure_output_files.get("expiresTimeStamp"),
+            failure_output_files.get("httpMethod"),
+            failure_output_files.get("version"),
+            failure_output_files.get("signedURL"),
+        ]
 
-            identity_processing = result_["statusInfo"]["identityProcessing"]
-            record.append(identity_processing["status"])
-            record.append(identity_processing["startTime"])
-            record.append(identity_processing["endTime"])
-            item_messages = identity_processing["messages"]
-            record.append(item_messages)
-            record.append(str(json_file_))
+        csv_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(csv_file, "a", newline="", encoding="utf-8") as outfile:
+            writer = csv.writer(outfile, dialect="excel")
+            if counter == 1:
+                writer.writerow(
+                    [
+                        "No.",
+                        "Outcome",
+                        "importValidationStatus",
+                        "importValidationStartTime",
+                        "importValidationEndTime",
+                        "importValidationMessages",
+                        "dataProcessingStatus",
+                        "dataProcessingStartTime",
+                        "dataProcessingEndTime",
+                        "dataProcessingMessages",
+                        "identityProcessingStatus",
+                        "identityProcessingStartTime",
+                        "identityProcessingEndTime",
+                        "identityProcessingMessages",
+                        "Total Number of Records Not Processed",
+                        "Total Number of Identities Updated",
+                        "Total Number of Identities Created",
+                        "Total Number of Identities Rejected",
+                        "Total Number of Records Processed",
+                        "createdTimeStamp",
+                        "expiresTimeStamp",
+                        "httpMethod",
+                        "version",
+                        "signedURL",
+                    ]
+                )
+            writer.writerow(record)
 
-            if item_messages["info"] is not None:
-                info = item_messages["info"]
-                record.append(info["Total Number of Records Not Processed"])
-                record.append(info["Total Number of Identities Updated"])
-                record.append(info["Total Number of Identities Created"])
-                record.append(info["Total Number of Identities Rejected"])
-                record.append(info["Total Number of Records Processed"])
-            if hasattr(result_, "failureOutputFiles"):
-                failure_output_files = result_["failureOutputFiles"]
-                record.append(failure_output_files["createdTimeStamp"])
-                record.append(failure_output_files["expiresTimeStamp"])
-                record.append(failure_output_files["httpMethod"])
-                record.append(failure_output_files["version"])
-                record.append(failure_output_files["signedURL"])
+    def refresh_data(self, **kwargs) -> Optional[dict]:
+        """
+        Fetch the current import-request-job summary for the identity-bridge
+        table and persist the raw response as a JSON report.
 
-            with open(csv_file, "a", newline="", encoding="utf-8") as outfile:
-                writer = csv.writer(outfile, dialect="excel")
-                if counter == 1:
-                    writer.writerow(
-                        [
-                            "No.",
-                            "importValidationStatus",
-                            "importValidationStartTime",
-                            "importValidationEndTime",
-                            "importValidationMessages",
-                            "dataProcessingStatus",
-                            "dataProcessingStartTime",
-                            "dataProcessingEndTime",
-                            "dataProcessingMessages",
-                            "identityProcessingStatus",
-                            "identityProcessingStartTime",
-                            "identityProcessingEndTime",
-                            "identityProcessingMessages",
-                            "Record Detail",
-                            "Total Number of Records Not Processed",
-                            "Total Number of Identities Updated",
-                            "Total Number of Identities Created",
-                            "Total Number of Identities Rejected",
-                            "Total Number of Records Processed",
-                            "createdTimeStamp",
-                            "expiresTimeStamp",
-                            "httpMethod",
-                            "version",
-                            "signedURL",
-                        ]
-                    )
-                writer.writerow(record)
-
-    def refresh_data(self, **kwargs):
+        :keyword time_stamp: timestamp to namespace this run's response file
+            with; defaults to now.
+        :return: the parsed job-summary response, or None on failure.
+        :rtype: dict
+        """
         try:
-            if "time_stamp" in kwargs:
-                time_stamp_ = kwargs["time_stamp"]
-            else:
-                time_stamp = datetime.now().strftime("%Y:%m:%d:%H:%M:%S")
-                time_stamp_ = time_stamp.replace(":", "")
-
-            if self.mode is not None:
-                folder = "{0}{1}/".format(
-                    self.gDirDataResponseImportRequestJobsGet, self.mode
-                )
-            else:
-                folder = "{0}{1}/".format(
-                    self.gDirDataResponseImportRequestJobsGet, "development"
-                )
-
-            external_gateway_path = self.external_gateway_path
-            import_request_jobs_path = self.import_request_jobs_path
-            secret_key = self.secret_key
-            table_id = self.identity_bridge_table_id
-            tenant_id = self.tenant_id
-            token = self.security.generate_jwt(
-                secret_key=secret_key, tenant_id=tenant_id
+            time_stamp_ = kwargs.get("time_stamp") or datetime.now().strftime(
+                "%Y%m%d%H%M%S"
             )
 
-            action = "GET"
-            data = None
-            headers = {
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "Authorization": "Bearer {0}".format(token),
-            }
-            params = None
-            url = "https://{0}{1}?{2}".format(
-                external_gateway_path, import_request_jobs_path, "start=0&limit=999"
+            jobs = self.client.get_import_request_jobs(
+                data_descriptor_id=self.identity_bridge_table_id
             )
-            result = self.connection.connect(
-                action=action, data=data, headers=headers, params=params, url=url
+            self.reporter.save(
+                folder=self._folder(),
+                name="import_request_jobs_get_{}".format(time_stamp_),
+                data=jobs,
             )
-            file_name = "import_request_jobs_get_{}".format(time_stamp_)
-            self.reporter.save(folder=folder, name=file_name, data=result)
-
-            json_file = Path(
-                "{0}{1}{2}{3}".format(root_path, folder, file_name, ".JSON")
-            )
-
-            with open(json_file, "r", encoding="utf-8") as outfile:
-                _result = json.load(outfile)
-                _url = None
-                if _result is not None:
-                    for item in _result["items"]:
-                        if item["dataDescriptorId"] == table_id:
-                            _id = item["id"]
-                            for i in item["links"]:
-                                if i["method"] == "GET":
-                                    _url = i["href"]
-                                    temporary_url = _url
-                                    action = "GET"
-                                    data = None
-                                    headers = {
-                                        "Accept": "application/json",
-                                        "Content-Type": "application/json",
-                                        "Authorization": "Bearer {0}".format(token),
-                                    }
-                                    params = None
-                                    url = temporary_url
-                                    result = self.connection.connect(
-                                        action=action,
-                                        data=data,
-                                        headers=headers,
-                                        params=params,
-                                        url=url,
-                                    )
-                                    self.reporter.save(
-                                        folder=folder,
-                                        name="{}".format(_id),
-                                        data=result,
-                                    )
-        except (OSError, KeyError, json.JSONDecodeError) as e:
+            return jobs
+        except (KeyError, OSError, CI360DataError) as e:
             self.logger.exception("Exception occurred: {}".format(str(e)))
+            return None
 
 
 if __name__ == "__main__":

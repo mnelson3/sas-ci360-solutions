@@ -28,9 +28,14 @@ sys.path.append(dir_path)
 
 
 class SendIdentityBridgeSupportMessage:
-    __mode = None
+    """A weekly, file-triggered workflow: if a manually-dropped identity-bridge
+    "change" file is present on disk, email it to SAS Technical Support for
+    manual processing. Unrelated to the daily upload/report/status cycle's
+    success or failure."""
 
     def __init__(self, **kwargs):
+        self.mode = kwargs.get("mode")
+
         self._log_file = Path(
             "{0}{1}{2}".format(
                 pkg_path, "/logs/", "custom_send_identity_bridge_support_message.log"
@@ -43,133 +48,91 @@ class SendIdentityBridgeSupportMessage:
         handler.setLevel(logging.INFO)
         self.logger.addHandler(handler)
 
-        if "mode" in kwargs:
-            SendIdentityBridgeSupportMessage.__mode = kwargs["mode"]
-        else:
-            SendIdentityBridgeSupportMessage.__mode = None
-        self.__mode = SendIdentityBridgeSupportMessage.__mode
+        self.root_path = kwargs.get("root_path", root_path)
+        self.standard = kwargs.get("standard") or Standard(mode=self.mode)
 
-        if self.__mode is not None:
-            self._standard = Standard(mode=self.__mode)
-            self._communication = communication.Communication(
-                email_server=self._standard.email_server,
-                email_server_login=self._standard.email_server_login,
-                email_server_password=self._standard.email_server_password,
-                email_server_port=self._standard.email_server_port,
-            )
-            self._secret_key = self._standard.secret_key_arr
-            self._tenant_id = self._standard.tenant_id_arr
-            self._export_path = self._standard.export_path_arr
-            self._email_msg_from = self._standard.email_msg_support_from_arr
-            self._email_msg_to = self._standard.email_msg_support_to_arr
-            self._email_msg_cc = self._standard.email_msg_support_cc_arr
-            self._tenant_environment = self._standard.tenant_environment_arr
-            self._tenant_name = self._standard.tenant_name_arr
-            self._tenant_number = self._standard.tenant_number_arr
-            self._tenant_product = self._standard.tenant_product_arr
-            self._tenant_url = self._standard.tenant_url_arr
-            self._export_change_file = self._standard.export_change_file_arr
-            self._export_post_path = self._standard.export_post_path_arr
-        else:
-            self._standard = Standard()
-            self._communication = communication.Communication(
-                email_server=self._standard.email_server,
-                email_server_login=self._standard.email_server_login,
-                email_server_password=self._standard.email_server_password,
-                email_server_port=self._standard.email_server_port,
-            )
-            self._secret_key = self._standard.secret_key
-            self._tenant_id = self._standard.tenant_id
-            self._export_path = self._standard.export_path
-            self._email_msg_from = self._standard.email_msg_support_from
-            self._email_msg_to = self._standard.email_msg_support_to
-            self._email_msg_cc = self._standard.email_msg_support_cc
-            self._tenant_environment = self._standard.tenant_environment
-            self._tenant_name = self._standard.tenant_name
-            self._tenant_number = self._standard.tenant_number
-            self._tenant_product = self._standard.tenant_product
-            self._tenant_url = self._standard.tenant_url
-            self._export_change_file = self._standard.export_change_file
-            self._export_post_path = self._standard.export_post_path
+        self.communication = kwargs.get("communication") or communication.Communication(
+            email_server=self.standard.email_server,
+            email_server_login=self.standard.email_server_login,
+            email_server_password=self.standard.email_server_password,
+            email_server_port=self.standard.email_server_port,
+        )
 
-    def run(self):
+    def run(self) -> bool:
+        """
+        Email a manually-dropped identity-bridge change file to SAS Technical
+        Support, if one is present.
+
+        :return: True if an email was sent, False if there was nothing to
+            send or sending failed.
+        :rtype: bool
+        """
         try:
             time_stamp = datetime.now().strftime("%Y:%m:%d:%H:%M:%S")
             time_stamp_ = time_stamp.replace(":", "")
 
-            csv_file = None
-            export_change_file = self._export_change_file
-            export_post_path = self._export_post_path
-            export_folder = self._export_path
-            email_msg_from = self._email_msg_from
-            email_msg_to = self._email_msg_to
-            email_msg_cc = self._email_msg_cc
-            tenant_environment = self._tenant_environment
-            tenant_name = self._tenant_name
-            tenant_number = self._tenant_number
-            tenant_product = self._tenant_product
-            tenant_url = self._tenant_url
-            issue = (
-                "Please route this file SAS CI360 Product Management and R&D for processing. "
-                "The attached file is to be used to update the Identity Bridge Table to reflect "
-                "the indicated changes to the corresponding IDs."
-            )
+            export_change_file = self.standard.export_change_file
+            export_post_path = self.standard.export_post_path
+            export_folder = self.standard.export_path
 
             file_change_path = Path(
                 "{0}/{1}".format(export_post_path, export_change_file)
             )
 
-            if file_change_path.exists():
-                file_export_change = "{0}_{1}{2}".format(
-                    export_change_file[:-4], time_stamp_, ".CSV"
-                )
-                file_export_change_path = Path(
-                    "{0}{1}/{2}".format(root_path, export_folder, file_export_change)
-                )
-                shutil.copy(file_change_path, file_export_change_path)
+            if not file_change_path.exists():
+                return False
 
-                if file_export_change_path.exists():
-                    os.remove(file_change_path)
-                csv_file = file_export_change_path
+            file_export_change = "{0}_{1}{2}".format(
+                export_change_file[:-4], time_stamp_, ".CSV"
+            )
+            file_export_change_path = Path(
+                "{0}{1}/{2}".format(self.root_path, export_folder, file_export_change)
+            )
+            file_export_change_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(file_change_path, file_export_change_path)
+            os.remove(file_change_path)
 
-            if csv_file is not None:
-                msg_from = "SAS CI360 Automation Engine [DO-NOT-REPLY] <{0}>".format(
-                    email_msg_from
+            msg_from = "SAS CI360 Solutions [DO-NOT-REPLY] <{0}>".format(
+                self.standard.email_msg_support_from
+            )
+            msg_body = (
+                "Environment: {0}\n"
+                "Name: {1}\n"
+                "Number: {2}\n"
+                "Product: {3}\n"
+                "URL: {4}\n"
+                "User: {5}\n"
+                "Time of attempt: {6}\n"
+                "Issue: Please route this file to SAS Product Management and R&D "
+                "for processing. The attached file is to be used to update the "
+                "Identity Bridge Table to reflect the indicated changes to the "
+                "corresponding IDs.".format(
+                    self.standard.tenant_environment,
+                    self.standard.tenant_name,
+                    self.standard.tenant_number,
+                    self.standard.tenant_product,
+                    self.standard.tenant_url,
+                    msg_from,
+                    time_stamp,
                 )
-                msg_to = "SAS Technical Support <{}>".format(email_msg_to)
-                msg_cc = email_msg_cc
-                msg_subject = "Identity Bridge Change Update [{0}]".format(time_stamp)
-                msg_body = (
-                    "Environment: {0}\n"
-                    "Name: {1}\n"
-                    "Number: {2}\n"
-                    "Product: {3}\n"
-                    "URL: {4}\n"
-                    "User: {5}\n"
-                    "Time of attempt: {6}\n"
-                    "Issue: {7}".format(
-                        tenant_environment,
-                        tenant_name,
-                        tenant_number,
-                        tenant_product,
-                        tenant_url,
-                        msg_from,
-                        time_stamp,
-                        issue,
-                    )
-                )
-                msg_attachment = csv_file
+            )
 
-                self._communication.send_email(
-                    email_msg_from=msg_from,
-                    email_msg_to=msg_to,
-                    email_msg_cc=msg_cc,
-                    email_msg_subject=msg_subject,
-                    email_msg_body=msg_body,
-                    email_msg_attachment=msg_attachment,
-                )
+            self.communication.send_email(
+                email_msg_from=msg_from,
+                email_msg_to="SAS Technical Support <{}>".format(
+                    self.standard.email_msg_support_to
+                ),
+                email_msg_cc=self.standard.email_msg_support_cc,
+                email_msg_subject="Identity Bridge Change Update [{0}]".format(
+                    time_stamp
+                ),
+                email_msg_body=msg_body,
+                email_msg_attachment=file_export_change_path,
+            )
+            return True
         except (OSError, smtplib.SMTPException) as e:
             self.logger.exception("Exception occurred: {}".format(str(e)))
+            return False
 
 
 if __name__ == "__main__":
