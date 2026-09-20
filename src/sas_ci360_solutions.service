@@ -1,13 +1,13 @@
 [Unit]
-Description=SAS Customer Intelligence 360 Automation Engine Service
+Description=SAS Customer Intelligence 360 Solutions Service
 After=network.target
 
 [Service]
 User=root
 StandardOutput=journal
 StandardError=journal
-ExecStart=/opt/SAS_CI360_Automation_Engine/venv/bin/python3 /opt/SAS_CI360_Automation_Engine/src/SASCI360Service.py start
-WorkingDirectory=/opt/SAS_CI360_Automation_Engine/
+ExecStart=/opt/sas-ci360-solutions/venv/bin/python3 /opt/sas-ci360-solutions/src/UnixService.py start
+WorkingDirectory=/opt/sas-ci360-solutions/
 
 [Install]
 WantedBy=multi-user.target

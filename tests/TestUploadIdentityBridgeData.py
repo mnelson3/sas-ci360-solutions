@@ -6,54 +6,107 @@
 # You may obtain a copy of the License at
 # https://github.com/mnelson3/sas-ci360-solutions/blob/main/LICENSE
 #
-import os
-
-import pytest
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 from sasci360solutions.identity_data.UploadIdentityBridgeData import (
     UploadIdentityBridgeData,
 )
 
-requires_live_tenant = pytest.mark.skipif(
-    not os.environ.get("CI360_RUN_LIVE_TESTS"),
-    reason=(
-        "UploadIdentityBridgeData.run() calls a live CI360 gateway and reads a "
-        "real identity-bridge export file from disk; set CI360_RUN_LIVE_TESTS=1 "
-        "with a populated config.ini to run it"
-    ),
-)
+
+def _standard(tmp_path):
+    export_path = tmp_path / "export"
+    export_post_path = tmp_path / "post"
+    export_path.mkdir()
+    export_post_path.mkdir()
+    (export_post_path / "export.csv").write_text("id,email\n1,a@example.com\n")
+
+    return SimpleNamespace(
+        algorithm="HS256",
+        encoding="UTF-8",
+        external_gateway_path="extapigwservice-test.ci360.sas.com",
+        secret_key="example-secret-key",
+        tenant_id="example-tenant-id",
+        export_file="export.csv",
+        export_path="/{0}/".format(export_path.name),
+        export_post_path=str(export_post_path),
+        gDirDataResponseFileTransferLocationPost="/data/response/file_transfer_location_post/",
+    )
 
 
-@requires_live_tenant
-def test_upload_identity_bridge_data_mode_development():
-    mode = "development"
-    custom = UploadIdentityBridgeData(mode=mode)
+def test_upload_identity_bridge_data_success(tmp_path):
+
+    standard = _standard(tmp_path)
+    client = MagicMock()
+    client.create_file_transfer_location.return_value = {
+        "signedURL": "https://example.com/signed"
+    }
+    client.upload_to_signed_url.return_value = True
+    reporter = MagicMock()
+
+    custom = UploadIdentityBridgeData(
+        standard=standard, client=client, reporter=reporter, root_path=str(tmp_path)
+    )
     result = custom.run()
-    print("result : {0}".format(result))
-    assert result is not None
+
+    assert result is True
+    client.create_file_transfer_location.assert_called_once()
+    client.upload_to_signed_url.assert_called_once()
+    args, kwargs = client.upload_to_signed_url.call_args
+    assert args[0] == "https://example.com/signed"
+    reporter.save.assert_called_once()
 
 
-@requires_live_tenant
-def test_upload_identity_bridge_data_mode_test():
-    mode = "test"
-    custom = UploadIdentityBridgeData(mode=mode)
+def test_upload_identity_bridge_data_explicit_file(tmp_path):
+
+    csv_file = tmp_path / "chain.csv"
+    csv_file.write_text("id\n1\n")
+
+    standard = _standard(tmp_path)
+    client = MagicMock()
+    client.create_file_transfer_location.return_value = {
+        "signedURL": "https://example.com/signed"
+    }
+    client.upload_to_signed_url.return_value = True
+    reporter = MagicMock()
+
+    custom = UploadIdentityBridgeData(
+        standard=standard, client=client, reporter=reporter, root_path=str(tmp_path)
+    )
+    result = custom.run(file_name=str(csv_file))
+
+    assert result is True
+    args, kwargs = client.upload_to_signed_url.call_args
+    assert args[1] == str(csv_file)
+
+
+def test_upload_identity_bridge_data_no_signed_url(tmp_path):
+
+    standard = _standard(tmp_path)
+    client = MagicMock()
+    client.create_file_transfer_location.return_value = {}
+    reporter = MagicMock()
+
+    custom = UploadIdentityBridgeData(
+        standard=standard, client=client, reporter=reporter, root_path=str(tmp_path)
+    )
     result = custom.run()
-    print("result : {0}".format(result))
-    assert result is not None
+
+    assert result is False
+    client.upload_to_signed_url.assert_not_called()
 
 
-@requires_live_tenant
-def test_upload_identity_bridge_data_mode_production():
-    mode = "production"
-    custom = UploadIdentityBridgeData(mode=mode)
+def test_upload_identity_bridge_data_client_error(tmp_path):
+    from sasci360soldata.base import CI360DataConnectionError
+
+    standard = _standard(tmp_path)
+    client = MagicMock()
+    client.create_file_transfer_location.side_effect = CI360DataConnectionError("boom")
+    reporter = MagicMock()
+
+    custom = UploadIdentityBridgeData(
+        standard=standard, client=client, reporter=reporter, root_path=str(tmp_path)
+    )
     result = custom.run()
-    print("result : {0}".format(result))
-    assert result is not None
 
-
-@requires_live_tenant
-def test_upload_identity_bridge_data():
-    custom = UploadIdentityBridgeData()
-    result = custom.run()
-    print("result : {0}".format(result))
-    assert result is not None
+    assert result is False
