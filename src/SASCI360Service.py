@@ -21,7 +21,7 @@ class SASCI360Service(win32serviceutil.ServiceFramework):
     _svc_name_ = "SASCI360Service"
     _svc_display_name_ = "SAS CI360 Service"
     _svc_description_ = (
-        "Windows Service used to run SAS CI360 Automation Engine as a service."
+        "Windows Service used to run the SAS CI360 Solutions identity-bridge cycle."
     )
 
     _current_file_ = __file__
@@ -70,14 +70,13 @@ class SASCI360Service(win32serviceutil.ServiceFramework):
 
     def main(self):
         try:
-            src_path = Path(self._dir_path_.format("/main"))
-            sys.path.append(src_path)
-            from main import Main
+            from sasci360solutions.main import CI360Main
 
+            app = CI360Main()
             rc = None
             while rc != win32event.WAIT_OBJECT_0:
-                Main.start()
-                rc = win32event.WaitForSingleObject(self.hWaitStop, 50000)
+                app.check_and_run()
+                rc = win32event.WaitForSingleObject(self.hWaitStop, 300000)
         except Exception as e:
             logging.exception("Exception occurred: {}".format(str(e)))
             return None

@@ -51,13 +51,12 @@ The SAS CI360 Solutions project implements a Windows/Linux service that automate
 
 ### Solutions Code
 
-This engine builds on `sasci360apicore` (an internal SAS CI360 API client library, not published on PyPI) for:
+The identity-bridge cycle (`sasci360solutions.identity_data`) calls CI360's Marketing Data API — file transfer location, import request jobs, and tables — through the `sasci360soldata` client, which itself generates JWT auth tokens via `sasci360apicore.encryption`. Two `sasci360apicore` primitives are used directly:
 
-1. **Communication**: Handles API communications with CI360
-2. **Connection**: Manages secure connections to CI360 endpoints
-3. **Reporter**: Generates reports on automation activities
+1. **Communication**: sends the status/support emails over SMTP
+2. **Reporter**: persists every API response payload as a JSON report for auditability
 
-and provides its own logging and JWT-based authentication on top of it.
+`sasci360apicore.scheduler.Scheduler` is available for whatever process calls `CI360Main.check_and_run()` on a recurring cadence (see `src/UnixService.py`/`src/SASCI360Service.py`).
 
 ### Troubleshooting
 
@@ -94,12 +93,13 @@ The SAS CI360 Solutions project follows a modular, service-oriented architecture
 #### Core Components
 
 1. **Service Layer**: Platform-specific service implementations
-   - `WindowsService.py`: Windows service integration
    - `UnixService.py`: Linux systemd service support
-   - `SASCI360Service.py`: Cross-platform service manager
+   - `SASCI360Service.py`: Windows service integration
 
 2. **Module Layer**: Business logic and automation components
-   - **Communication** / **Connection** / **Reporter**: provided by the `sasci360apicore` dependency
+   - **CI360Main** (`sasci360solutions/main.py`): orchestrates the identity-bridge cycle
+   - **sasci360soldata**: CI360 Marketing Data API client (file transfer, import request jobs, tables)
+   - **Communication** / **Reporter**: provided by the `sasci360apicore` dependency
    - **Logger**: Structured logging built on Python's `logging` module
 
 3. **Configuration Layer**: Centralized settings management
@@ -111,23 +111,22 @@ The SAS CI360 Solutions project follows a modular, service-oriented architecture
 sas-ci360-solutions/
 ├── src/
 │   ├── standard.py                 # Configuration singleton
-│   ├── WindowsService.py           # Windows service entry point
 │   ├── UnixService.py              # Linux systemd entry point
-│   ├── SASCI360Service.py          # Cross-platform service manager
+│   ├── SASCI360Service.py          # Windows service entry point
 │   └── sasci360solutions/          # Main package
 │       ├── __init__.py
-│       ├── main.py                 # Application entry point
-│       ├── content/                # Content management
-│       ├── identity_data/          # Identity management
+│       ├── main.py                 # CI360Main orchestrator (identity-bridge cycle)
+│       ├── content/                # Reserved for future content-delivery integration
+│       ├── identity_data/          # Identity-bridge cycle
 │       │   ├── CreateIdentityBridgeReports.py
 │       │   ├── SendIdentityBridgeStatusMessage.py
 │       │   ├── SendIdentityBridgeSupportMessage.py
 │       │   └── UploadIdentityBridgeData.py
-│       ├── marketing_data/         # Marketing data processing
+│       ├── marketing_data/         # Marketing data / table metadata
 │       │   └── TablesAction.py
-│       ├── planning/                # Planning integrations
-│       └── setup/                   # Setup utilities
-└── tests/                           # Test suite
+│       ├── planning/                # Reserved for future Plan API integration
+│       └── setup/                   # Reserved for future setup utilities
+└── tests/                           # Test suite (mocked, no live tenant required)
 ```
 
 `config/`, `data/`, and `logs/` are created locally at runtime and are not tracked in the repo (see `.gitignore`).
@@ -210,24 +209,40 @@ delimiter = config.delimiter()
 
 #### Environment Configuration
 
-Configuration is managed through `config/config.ini`:
+Configuration is managed through `config/config.ini` (copy `config/config.ini.example` to start). See that file for the full set of keys; the sections are:
 
 ```ini
-[CI360]
-base_url = https://your-ci360-instance.com
-client_id = your-client-id
-client_secret = your-client-secret
-tenant_id = your-tenant-id
-
 [EMAIL]
-smtp_server = smtp.company.com
-smtp_port = 587
-from_address = automation@company.com
+email_server = smtp.example.com
+email_server_login = automation@example.com
+email_server_password = changeme
+email_msg_status_to = admin@example.com
+; ... plus email_msg_support_* and their _dev/_test/_prod variants
 
-[LOGGING]
-level = INFO
-file = logs/service.log
+[FILES]
+export_file = export.csv
+; ... plus export_change_file and their _dev/_test/_prod variants
+
+[IDENTITIES]
+identity_bridge_table_id = changeme
+secret_key = changeme
+tenant_id = changeme
+; ... plus their _dev/_test/_prod variants
+
+[PATHS]
+external_gateway_path = extapigwservice-training.ci360.sas.com
+file_transfer_location_path = /marketingData/fileTransferLocation
+import_request_jobs_path = /marketingData/importRequestJobs
+; ... plus export_path/export_post_path and their _dev/_test/_prod variants
+
+[SETTINGS]
+algorithm = HS256
+encoding = UTF-8
+tenant_name = Example Tenant
+; ... plus tenant_environment/tenant_number/tenant_product/tenant_url
 ```
+
+Keys suffixed `_dev`/`_test`/`_prod` hold that environment's value; construct `Standard(mode="development"|"test"|"production")` to select one at construction time, or omit `mode` to get the bare (default) key's value.
 
 ### Module Development
 
@@ -302,21 +317,27 @@ The project integrates with multiple SAS CI360 APIs:
 
 #### Authentication
 
-JWT-based authentication is handled through the `communication` module:
+JWT-based authentication is handled by `sasci360soldata.base.CI360DataBase`, which generates a token from `sasci360apicore.encryption` at construction time:
 
 ```python
-from sasci360apicore import communication
+from sasci360soldata.base import CI360DataBase, CI360DataConfig
+from standard import Standard
 
-# Initialize client
-client = communication.Communication(
-    base_url=config.ci360_base_url,
-    client_id=config.client_id,
-    client_secret=config.client_secret
+standard = Standard(mode="test")
+client = CI360DataBase(
+    CI360DataConfig(
+        algorithm=standard.algorithm,
+        encoding=standard.encoding,
+        host="https://{0}".format(standard.external_gateway_path),
+        secret_key=standard.secret_key,
+        tenant_id=standard.tenant_id,
+    )
 )
 
-# Authenticate
-token = client.authenticate()
+jobs = client.get_import_request_jobs(data_descriptor_id=standard.identity_bridge_table_id)
 ```
+
+`sasci360apicore.communication.Communication` is a separate, unrelated client for sending status/support emails over SMTP — it has no CI360 authentication role.
 
 ### Testing Strategy
 
@@ -327,8 +348,10 @@ Tests are organized to mirror source structure:
 ```
 tests/
 ├── TestCreateIdentityBridgeReports.py
+├── TestMain.py
 ├── TestSendIdentityBridgeStatusMessage.py
 ├── TestSendIdentityBridgeSupportMessage.py
+├── TestTablesAction.py
 └── TestUploadIdentityBridgeData.py
 ```
 
@@ -346,57 +369,44 @@ python -m pytest --cov=src --cov-report=html
 
 # Run with verbose output
 python -m pytest -v
-
-# Include tests that call a live CI360 tenant (needs a populated config.ini)
-CI360_RUN_LIVE_TESTS=1 python -m pytest
 ```
 
-`TestUploadIdentityBridgeData.py`'s four tests call `UploadIdentityBridgeData.run()`, which makes a real HTTPS call to CI360's gateway and reads a real identity-bridge export file from disk. They're skipped unless `CI360_RUN_LIVE_TESTS` is set, so CI stays green without a live tenant; run them locally against your own tenant when changing that module.
+The full suite is mocked and runs without a live CI360 tenant or SMTP server: every module accepts its collaborators (`standard`, `client`, `reporter`, `communication`) as constructor keyword arguments, so tests pass in fakes instead of patching module internals.
 
 #### Writing Tests
 
-Follow these patterns for new tests:
+Follow this pattern for new tests — inject fakes via constructor kwargs rather than patching:
 
 ```python
-import unittest
-from unittest.mock import Mock, patch
-import sys
-import os
-
-# Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 from sasci360solutions.identity_data.SendIdentityBridgeStatusMessage import (
     SendIdentityBridgeStatusMessage,
 )
 
 
-class TestSendIdentityBridgeStatusMessage(unittest.TestCase):
-    def setUp(self):
-        """Set up test fixtures."""
-        self.instance = SendIdentityBridgeStatusMessage(mode="test")
+def test_send_status_message_success():
+    standard = SimpleNamespace(
+        email_server="smtp.example.com",
+        email_server_login="automation@example.com",
+        email_server_password="changeme",
+        email_server_port="465",
+        email_msg_status_from="noreply@example.com",
+        email_msg_status_to="admin@example.com",
+        email_msg_support_cc="support@example.com",
+        reports_path="/reports/",
+    )
+    communication = MagicMock()
 
-    def test_run_success(self):
-        """Test a successful status-message run."""
-        # Arrange
-        expected_result = {"status": "success"}
+    instance = SendIdentityBridgeStatusMessage(standard=standard, communication=communication)
+    result = instance.run(time_stamp="20260101000000", success=True)
 
-        # Act
-        with patch('sasci360apicore.connection.Connection.connect') as mock_connect:
-            mock_connect.return_value = Mock()
-            result = self.instance.run()
-
-        # Assert
-        self.assertIsNotNone(result)
-
-    def tearDown(self):
-        """Clean up test fixtures."""
-        pass
-
-
-if __name__ == '__main__':
-    unittest.main()
+    assert result is True
+    communication.send_email.assert_called_once()
 ```
+
+See `tests/TestCreateIdentityBridgeReports.py` and `tests/TestMain.py` for examples mocking the `sasci360soldata` client and chaining multiple mocked collaborators together.
 
 ### Deployment and Operations
 
@@ -506,11 +516,17 @@ python src/sasci360solutions/main.py
 
 **API Connection Issues**:
 ```bash
-# Test connectivity
-curl -I https://your-ci360-instance.com/api/v1/status
+# Test connectivity to your CI360 gateway
+curl -I https://extapigwservice-<env>.ci360.sas.com/marketingData/tables
 
-# Validate credentials
-python -c "from sasci360apicore import communication; c = communication.Communication(...); print(c.authenticate())"
+# Validate credentials generate a token
+python -c "
+from standard import Standard
+from sasci360apicore.encryption import Encryption
+s = Standard(mode='test')
+e = Encryption(algorithm=s.algorithm, encoding=s.encoding)
+print(e.generate_jwt(secret_key=s.secret_key, tenant_id=s.tenant_id))
+"
 ```
 
 #### Performance Optimization

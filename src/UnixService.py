@@ -7,13 +7,19 @@
 # https://github.com/mnelson3/sas-ci360-solutions/blob/main/LICENSE
 #
 import logging
+import os
+import sys
 import time
 from logging.handlers import SysLogHandler
 
 from service import Service, find_syslog
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 
 class UnixService(Service):
+    POLL_INTERVAL_SECONDS = 300
+
     def __init__(self, *args, **kwargs):
         super(UnixService, self).__init__(*args, **kwargs)
         self.logger.addHandler(
@@ -22,9 +28,15 @@ class UnixService(Service):
         self.logger.setLevel(logging.INFO)
 
     def run(self):
+        from sasci360solutions.main import CI360Main
+
+        app = CI360Main()
         while not self.got_sigterm():
-            self.logger.info("I'm working...")
-            time.sleep(5)
+            try:
+                app.check_and_run()
+            except Exception as e:
+                self.logger.exception("Exception occurred: {}".format(str(e)))
+            time.sleep(self.POLL_INTERVAL_SECONDS)
 
 
 if __name__ == "__main__":
