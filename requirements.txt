@@ -5,8 +5,8 @@ python-dateutil
 requests>=2.24.0
 saspy>=5.0.0
 schedule
-sasci360apicore @ git+https://github.com/mnelson3/sas_ci360_api_core.git@main
-sasci360soldata @ git+https://github.com/mnelson3/sas-ci360-sol-data.git@main
+sasci360apicore @ git+https://github.com/mnelson3/sas-ci360-sdk.git@main#subdirectory=packages/api-core
+sasci360soldata @ git+https://github.com/mnelson3/sas-ci360-sdk.git@main#subdirectory=packages/sol-data
 service>=0.6.0
 pywin32; sys_platform == "win32"
 urllib3>=2.0.0
