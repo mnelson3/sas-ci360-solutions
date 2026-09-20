@@ -22,10 +22,10 @@ It was rebuilt during the 2026-09-20 monorepo consolidation, replacing an earlie
 
 | ID | Objective | Primary metric |
 | --- | --- | --- |
-| CI360SOLUTIONS-BG-1 | Provide a working, runnable reference implementation of identity-bridge synchronization. | End-to-end cycle runnable from a fresh clone |
-| CI360SOLUTIONS-BG-2 | Run unattended, on a schedule, as a real OS service (Windows and Linux). | Both service wrappers present and tested |
-| CI360SOLUTIONS-BG-3 | Every operation verifiable without a live tenant or SMTP server. | 95% line coverage on `src/` (achieved 2026-09-20) |
-| CI360SOLUTIONS-BG-4 | No dead or broken code left in the tree pretending to be a feature. | 0 unimportable modules (2 were found and removed — see TRD.md) |
+| `CI360SOLUTIONS-BG-1` | Provide a working, runnable reference implementation of identity-bridge synchronization. | End-to-end cycle runnable from a fresh clone |
+| `CI360SOLUTIONS-BG-2` | Run unattended, on a schedule, as a real OS service (Windows and Linux). | Both service wrappers present and tested |
+| `CI360SOLUTIONS-BG-3` | Every operation verifiable without a live tenant or SMTP server. | 95% line coverage on `src/` (achieved 2026-09-20) |
+| `CI360SOLUTIONS-BG-4` | No dead or broken code left in the tree pretending to be a feature. | 0 unimportable modules (2 were found and removed — see TRD.md) |
 
 ## 4. Stakeholders
 
@@ -46,10 +46,10 @@ The identity-bridge cycle: chain-file upload, import-request-job status polling,
 
 | ID | Requirement | Priority |
 | --- | --- | --- |
-| CI360SOLUTIONS-BR-1 | The identity-bridge cycle must be runnable end-to-end as a reference for composing individual API clients into a real business process. | P1 |
-| CI360SOLUTIONS-BR-2 | Configuration must fail safely (fallback defaults, never a crash) when no `config/config.ini` is present. | P1 |
-| CI360SOLUTIONS-BR-3 | A dropped chain file must be moved out of the watched location immediately, not after the cycle completes, so a new file can be dropped mid-cycle. | P2 |
-| CI360SOLUTIONS-BR-4 | Code that can't even be imported must not be left in the source tree implying a working feature. | P1 (real finding, see TRD.md) |
+| `CI360SOLUTIONS-BR-1` | The identity-bridge cycle must be runnable end-to-end as a reference for composing individual API clients into a real business process. | P1 |
+| `CI360SOLUTIONS-BR-2` | Configuration must fail safely (fallback defaults, never a crash) when no `config/config.ini` is present. | P1 |
+| `CI360SOLUTIONS-BR-3` | A dropped chain file must be moved out of the watched location immediately, not after the cycle completes, so a new file can be dropped mid-cycle. | P2 |
+| `CI360SOLUTIONS-BR-4` | Code that can't even be imported must not be left in the source tree implying a working feature. | P1 (real finding, see TRD.md) |
 
 ## 7. Success metrics
 
