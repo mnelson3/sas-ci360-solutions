@@ -2,7 +2,7 @@ pandas>=2.0.0
 PyJWT>=2.0.0
 python-daemon
 python-dateutil
-requests>=2.24.0
+requests>=2.34.2
 saspy>=5.109.0
 schedule
 sasci360apicore @ git+https://github.com/mnelson3/sas-ci360-sdk.git@main#subdirectory=packages/api-core
