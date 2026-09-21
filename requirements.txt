@@ -3,7 +3,7 @@ PyJWT>=2.0.0
 python-daemon
 python-dateutil
 requests>=2.24.0
-saspy>=5.109.0
+saspy>=5.109.1
 schedule
 sasci360apicore @ git+https://github.com/mnelson3/sas-ci360-sdk.git@main#subdirectory=packages/api-core
 sasci360soldata @ git+https://github.com/mnelson3/sas-ci360-sdk.git@main#subdirectory=packages/sol-data
