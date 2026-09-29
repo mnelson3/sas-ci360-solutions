@@ -1,5 +1,34 @@
 # SAS Customer Intelligence 360 Solutions
 
+[![CI](https://github.com/mnelson3/sas-ci360-solutions/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/mnelson3/sas-ci360-solutions/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-Community%201.0-orange.svg)](https://github.com/mnelson3/sas-ci360-solutions/blob/develop/LICENSE)
+
+## Contents
+
+- [SAS 360 SOLUTIONS - Automation Engine](#sas-360-solutions---automation-engine)
+  - [Overview](#overview)
+  - [Features](#features)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Getting Started](#getting-started)
+  - [Solutions Code](#solutions-code)
+  - [Troubleshooting](#troubleshooting)
+- [Developer/Implementation Guide](#developerimplementation-guide)
+  - [Architecture Overview](#architecture-overview)
+  - [Project Structure](#project-structure)
+  - [Development Environment Setup](#development-environment-setup)
+  - [Configuration Management](#configuration-management)
+  - [Module Development](#module-development)
+  - [API Integration](#api-integration)
+  - [Testing Strategy](#testing-strategy)
+  - [Deployment and Operations](#deployment-and-operations)
+  - [Contributing Workflow](#contributing-workflow)
+  - [Troubleshooting for Developers](#troubleshooting-for-developers)
+  - [Security Considerations](#security-considerations)
+- [Contributing](#contributing)
+- [License](#license)
+  - [Nelson Grey LLC Community License 1.0](#nelson-grey-llc-community-license-10)
+  - [Additional Resources](#additional-resources)
+
 ## SAS 360 SOLUTIONS - Automation Engine
 
 > **Status: canonical.** This is the actively maintained identity-bridge and reporting orchestration layer, built on the `sol-*` client libraries.
@@ -65,7 +94,7 @@ The identity-bridge cycle (`sasci360solutions.identity_data`) calls CI360's Mark
 - Ensure all dependencies are installed
 - Review configuration settings
 
-## 🛠️ Developer/Implementation Guide
+## Developer/Implementation Guide
 
 This section provides comprehensive guidance for developers working with the SAS CI360 Solutions automation engine.
 
@@ -384,7 +413,6 @@ from unittest.mock import MagicMock
 from sasci360solutions.identity_data.SendIdentityBridgeStatusMessage import (
     SendIdentityBridgeStatusMessage,
 )
-
 
 def test_send_status_message_success():
     standard = SimpleNamespace(
